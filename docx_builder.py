@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 from docx import Document
@@ -13,9 +12,64 @@ from pathlib import Path
 class MSADocumentBuilder:
     def __init__(self):
         self.output_dir = 'output'
-        # Use absolute path based on script location to work in deployed environments
-        self.template_path = Path(__file__).parent / 'original_template.docx'
+        # Use multiple fallback approaches to find the template file in deployment environments
+        self.template_path = self._find_template_file()
         os.makedirs(self.output_dir, exist_ok=True)
+    
+    def _find_template_file(self):
+        """Find the template file using multiple fallback approaches for deployment environments"""
+        template_filename = 'original_template.docx'
+        
+        # Method 1: Same directory as this script (normal case)
+        script_dir_path = Path(__file__).parent / template_filename
+        if script_dir_path.exists():
+            print(f"Template found via script directory: {script_dir_path}")
+            return script_dir_path
+        
+        # Method 2: Current working directory (deployment case)
+        cwd_path = Path.cwd() / template_filename
+        if cwd_path.exists():
+            print(f"Template found via current working directory: {cwd_path}")
+            return cwd_path
+        
+        # Method 3: Root directory (some deployment environments)
+        root_path = Path('/') / template_filename
+        if root_path.exists():
+            print(f"Template found via root directory: {root_path}")
+            return root_path
+        
+        # Method 4: App directory (common in cloud deployments)
+        app_path = Path('/app') / template_filename
+        if app_path.exists():
+            print(f"Template found via /app directory: {app_path}")
+            return app_path
+        
+        # Method 5: Relative to current working directory with different depths
+        for depth in ['', './', '../', '../../']:
+            candidate_path = Path(depth) / template_filename
+            if candidate_path.exists():
+                print(f"Template found via relative path {depth}: {candidate_path.resolve()}")
+                return candidate_path.resolve()
+        
+        # Method 6: Search in common deployment paths
+        common_paths = [
+            '/var/app/current',
+            '/app',
+            '/home/app',
+            '/usr/src/app',
+            os.path.expanduser('~')
+        ]
+        
+        for base_path in common_paths:
+            candidate_path = Path(base_path) / template_filename
+            if candidate_path.exists():
+                print(f"Template found via common path {base_path}: {candidate_path}")
+                return candidate_path
+        
+        # If all else fails, use the original approach (script directory)
+        fallback_path = Path(__file__).parent / template_filename
+        print(f"Using fallback path (may not exist): {fallback_path}")
+        return fallback_path
     
     def generate_msa(self, client_data, preparer_data, include_compliance, include_security_plus, pricing_model, pricing_data):
         """Generate a complete MSA document using the original template as base"""
@@ -26,10 +80,17 @@ class MSADocumentBuilder:
         print(f"Pricing model: {pricing_model}")
         print(f"Include compliance: {include_compliance}")
         print(f"Include security plus: {include_security_plus}")
+        print(f"Template path being used: {self.template_path}")
         
         try:
             # Load the original template document
             if not self.template_path.exists():
+                # Additional debugging information
+                print(f"Template file not found at: {self.template_path}")
+                print(f"Current working directory: {Path.cwd()}")
+                print(f"Script file location: {Path(__file__).parent}")
+                print("Files in current directory:", list(Path.cwd().iterdir()))
+                print("Files in script directory:", list(Path(__file__).parent.iterdir()))
                 raise Exception(f"Template file not found: {self.template_path}")
             
             doc = Document(str(self.template_path))
