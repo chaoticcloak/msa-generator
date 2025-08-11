@@ -8,11 +8,13 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 class MSADocumentBuilder:
     def __init__(self):
         self.output_dir = 'output'
-        self.template_path = 'original_template.docx'
+        # Use absolute path based on script location to work in deployed environments
+        self.template_path = Path(__file__).parent / 'original_template.docx'
         os.makedirs(self.output_dir, exist_ok=True)
     
     def generate_msa(self, client_data, preparer_data, include_compliance, include_security_plus, pricing_model, pricing_data):
@@ -27,10 +29,10 @@ class MSADocumentBuilder:
         
         try:
             # Load the original template document
-            if not os.path.exists(self.template_path):
+            if not self.template_path.exists():
                 raise Exception(f"Template file not found: {self.template_path}")
             
-            doc = Document(self.template_path)
+            doc = Document(str(self.template_path))
             
             # 1. Add client information sections in the lower portion of page 1
             self._add_client_sections(doc, client_data, preparer_data)
@@ -123,8 +125,8 @@ class MSADocumentBuilder:
         address = client_data.get('address', '')
         if address:
             address_lines = []
-            if '\n' in address:
-                address_lines = address.split('\n')
+            if '\\n' in address:
+                address_lines = address.split('\\n')
             elif ',' in address and len(address) > 50:
                 parts = address.split(',')
                 address_lines = [parts[0].strip()]
@@ -368,7 +370,7 @@ if __name__ == '__main__':
     test_client_data = {
         'name': 'Test Company Inc.',
         'email': 'contact@testcompany.com',
-        'address': '123 Test Street\nSuite 456\nTest City, TX 12345',
+        'address': '123 Test Street\\nSuite 456\\nTest City, TX 12345',
         'phone': '(555) 123-4567'
     }
     
